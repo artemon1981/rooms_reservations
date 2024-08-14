@@ -5,7 +5,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.reservation import Reservation
+from app.models import Reservation, User
 
 
 class CRUDReservation(CRUDBase):
@@ -17,19 +17,14 @@ class CRUDReservation(CRUDBase):
             to_reserve: datetime,
             meetingroom_id: int,
             reservation_id: Optional[int] = None,
-            session: AsyncSession,
-    ) -> list[Reservation]:
+            session: AsyncSession,) -> list[Reservation]:
         select_stmt = select(Reservation).where(
             Reservation.meetingroom_id == meetingroom_id,
-            and_(
-                from_reserve <= Reservation.to_reserve,
-                to_reserve >= Reservation.from_reserve
-            )
-        )
+            and_(from_reserve <= Reservation.to_reserve,
+                to_reserve >= Reservation.from_reserve))
         if reservation_id is not None:
             select_stmt = select_stmt.where(
-                Reservation.id != reservation_id
-            )
+                Reservation.id != reservation_id)
         reservations = await session.execute(select_stmt)
         reservations = reservations.scalars().all()
         return reservations
@@ -37,16 +32,17 @@ class CRUDReservation(CRUDBase):
     async def get_future_reservations_for_room(
             self,
             room_id: int,
-            session: AsyncSession,
-    ):
+            session: AsyncSession,):
         reservations = await session.execute(
             select(Reservation).where(
                 Reservation.meetingroom_id == room_id,
-                Reservation.to_reserve > datetime.now()
-            )
-        )
+                Reservation.to_reserve > datetime.now()))
         reservations = reservations.scalars().all()
         return reservations
+
+    async def get_by_user(self, session: AsyncSession, user: User):
+        reservations = await session.execute(select(Reservation).where(Reservation.user_id == user.id))
+        return reservations.scalars().all()
 
 
 
